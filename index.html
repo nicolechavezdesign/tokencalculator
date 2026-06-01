@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Task Prioritizer — SpotOn</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --white: #f5f4f0;
+    --gray-2: #2a2a2a;
+    --gray-3: #444;
+    --gray-4: #888;
+    --gray-5: #bbb;
+    --accent: #d4ff00;
+    --invest: #c8f0a0;
+    --invest-bg: #1a2a0a;
+    --selective: #f5e090;
+    --selective-bg: #2a2500;
+    --protect: #f0c0b0;
+    --protect-bg: #2a1008;
+    --cost-blue: #a0d4f0;
+    --cost-blue-bg: #0a1e2a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+  }
+
+  header {
+    border-bottom: 1px solid var(--gray-2);
+    padding: 28px 40px 24px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .logo-area { display: flex; align-items: center; gap: 14px; }
+
+  .spoton-mark {
+    width: 32px; height: 32px;
+    border: 1.5px solid var(--gray-3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .header-title {
+    font-size: 13px; font-weight: 500;
+    color: var(--gray-4); letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  .header-right {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--gray-4);
+    text-align: right; line-height: 1.6;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    min-height: calc(100vh - 89px);
+  }
+
+  /* LEFT */
+  .left { padding: 40px; border-right: 1px solid var(--gray-2); }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--gray-4);
+    margin-bottom: 20px;
+  }
+
+  .hero-text {
+    font-size: 34px; font-weight: 700;
+    line-height: 1.1; letter-spacing: -.02em; margin-bottom: 10px;
+  }
+
+  .hero-sub {
+    font-size: 14px; color: var(--gray-4);
+    line-height: 1.6; max-width: 480px; margin-bottom: 44px;
+  }
+
+  .dim { padding: 18px 0; border-top: 1px solid var(--gray-2); }
+  .dim:last-of-type { border-bottom: 1px solid var(--gray-2); }
+
+  .dim-header {
+    display: flex; justify-content: space-between;
+    align-items: baseline; margin-bottom: 4px;
+  }
+
+  .dim-name { font-size: 15px; font-weight: 600; }
+
+  .dim-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px; font-weight: 500;
+    color: var(--accent); line-height: 1;
+  }
+
+  .dim-desc { font-size: 12px; color: var(--gray-4); margin-bottom: 12px; line-height: 1.5; }
+
+  .dim-poles {
+    display: flex; justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; color: var(--gray-4);
+    margin-bottom: 6px; letter-spacing: .03em;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 2px;
+    background: var(--gray-2); border-radius: 1px;
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(212,255,0,.15);
+    transition: box-shadow .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 7px rgba(212,255,0,.2); }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent); border: none; cursor: pointer;
+  }
+
+  .upload-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 24px; cursor: pointer;
+  }
+
+  .toggle-track {
+    width: 36px; height: 20px; border-radius: 10px;
+    background: var(--gray-2); position: relative;
+    transition: background .2s; flex-shrink: 0;
+  }
+
+  .toggle-knob {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--gray-4); position: absolute;
+    top: 3px; left: 3px;
+    transition: left .2s, background .2s;
+  }
+
+  .upload-label { font-size: 13px; color: var(--gray-4); }
+
+  /* RIGHT */
+  .right {
+    display: flex; flex-direction: column;
+    position: sticky; top: 0;
+    height: calc(100vh - 89px);
+    overflow: hidden;
+  }
+
+  /* Panels split 50/50 */
+  .panel {
+    flex: 0 0 50%;
+    padding: 28px;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .panel-fit { border-bottom: 1px solid var(--gray-2); }
+
+  .panel-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--gray-4);
+    margin-bottom: 16px;
+  }
+
+  .score-block {
+    display: flex; align-items: center;
+    gap: 16px; margin-bottom: 14px;
+  }
+
+  .ring-wrap {
+    position: relative; width: 72px; height: 72px; flex-shrink: 0;
+  }
+  .ring-wrap svg { width: 72px; height: 72px; transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--gray-2); stroke-width: 4; }
+  .ring-fill { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .4s, stroke .4s; }
+  .ring-center {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500;
+  }
+
+  .score-verdict { font-size: 17px; font-weight: 700; line-height: 1.2; margin-bottom: 3px; }
+  .score-hint { font-size: 11px; color: var(--gray-4); line-height: 1.4; }
+
+  .verdict-pill {
+    border-radius: 2px; padding: 12px 14px;
+    margin-bottom: 14px; font-size: 13px; line-height: 1.6;
+    transition: background .4s;
+  }
+
+  .dl { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--gray-4); margin-bottom: 4px; }
+  .dt { font-size: 12px; color: var(--gray-5); line-height: 1.5; margin-bottom: 10px; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .tag { font-size: 11px; padding: 3px 9px; border-radius: 2px; background: var(--gray-2); color: var(--gray-5); font-family: 'DM Mono', monospace; }
+
+  /* Cost panel */
+  .cost-amount {
+    font-family: 'DM Mono', monospace;
+    font-size: 30px; font-weight: 500; line-height: 1;
+    transition: color .4s; margin-bottom: 4px;
+  }
+
+  .cost-unit { font-size: 12px; color: var(--gray-4); margin-bottom: 10px; }
+
+  .cost-bar-bg { height: 4px; background: var(--gray-2); border-radius: 2px; margin-bottom: 18px; }
+  .cost-bar-fill { height: 4px; border-radius: 2px; transition: width .4s, background .4s; }
+
+  .cost-table { display: flex; flex-direction: column; gap: 0; }
+
+  .ct-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; padding: 8px 0;
+    border-bottom: 1px solid var(--gray-2);
+  }
+  .ct-row:last-child { border-bottom: none; }
+  .ct-label { color: var(--gray-4); }
+  .ct-val { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--gray-5); }
+  .ct-val.hi { color: var(--white); }
+  .ct-val.warn { color: var(--protect); }
+
+  .upload-note {
+    margin-top: 12px; padding: 10px 12px;
+    background: rgba(240,192,176,.07); border-radius: 2px;
+    font-size: 11px; color: var(--gray-4); line-height: 1.5;
+    display: none;
+  }
+  .upload-note.show { display: block; }
+  .upload-note strong { color: var(--protect); }
+
+  @media (max-width: 860px) {
+    .main { grid-template-columns: 1fr; }
+    .left { border-right: none; border-bottom: 1px solid var(--gray-2); }
+    .right { position: static; height: auto; overflow: visible; }
+    .panel { flex: none; overflow-y: visible; }
+    header { padding: 20px 24px; flex-direction: column; align-items: flex-start; }
+    .left, .panel { padding: 24px; }
+    .hero-text { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-area">
+    <div class="spoton-mark">
+      <svg viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="7" r="5.5" stroke="#888" stroke-width="1.5"/>
+        <circle cx="7" cy="7" r="2" fill="#888"/>
+      </svg>
+    </div>
+    <span class="header-title">SpotOn Product</span>
+  </div>
+  <div class="header-right">AI Task Prioritizer<br>Design Phase · May 2026</div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="eyebrow">// Configure a task</div>
+    <h1 class="hero-text">Should we use<br>AI for this?</h1>
+    <p class="hero-sub">Adjust the sliders to match a task you're considering. The top-right panel tells you whether AI is the right call. The bottom-right estimates what it'll cost — independently.</p>
+
+    <div class="dim">
+      <div class="dim-header">
+        <span class="dim-name">Repetition</span>
+        <span class="dim-val" id="v-repeat">3</span>
+      </div>
+      <p class="dim-desc">How often does this task recur? Frequently recurring tasks get more ROI from AI than one-offs.</p>
+      <div class="dim-poles"><span>Rarely / one-off</span><span>Constantly recurring</span></div>
+      <input type="range" min="1" max="5" value="3" id="s-repeat" oninput="update()">
+    </div>
+
+    <div class="dim">
+      <div class="dim-header">
+        <span class="dim-name">Judgment required</span>
+        <span class="dim-val" id="v-judge">3</span>
+      </div>
+      <p class="dim-desc">How much human expertise, context, or strategic thinking does the task demand?</p>
+      <div class="dim-poles"><span>Minimal</span><span>Deep expertise / strategy</span></div>
+      <input type="range" min="1" max="5" value="3" id="s-judge" oninput="update()">
+    </div>
+
+    <div class="dim">
+      <div class="dim-header">
+        <span class="dim-name">Customer / business impact</span>
+        <span class="dim-val" id="v-impact">3</span>
+      </div>
+      <p class="dim-desc">How visible or consequential is this output to customers, merchants, or business outcomes?</p>
+      <div class="dim-poles"><span>Internal only</span><span>Customer-facing / high stakes</span></div>
+      <input type="range" min="1" max="5" value="3" id="s-impact" oninput="update()">
+    </div>
+
+    <div class="dim">
+      <div class="dim-header">
+        <span class="dim-name">Session complexity</span>
+        <span class="dim-val" id="v-complex">3</span>
+      </div>
+      <p class="dim-desc">How involved is the AI session — single prompt, multi-turn conversation, or agentic/code workflow?</p>
+      <div class="dim-poles"><span>Single prompt</span><span>Agentic / Claude Code</span></div>
+      <input type="range" min="1" max="5" value="3" id="s-complex" oninput="update()">
+    </div>
+
+    <div class="upload-row" onclick="toggleUpload()">
+      <div class="toggle-track" id="toggle-track">
+        <div class="toggle-knob" id="toggle-knob"></div>
+      </div>
+      <span class="upload-label">Task involves large document or image uploads</span>
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+
+    <!-- Panel A: Should we? -->
+    <div class="panel panel-fit">
+      <div class="panel-eyebrow">// Should we use AI?</div>
+
+      <div class="score-block">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 72 72">
+            <circle class="ring-bg" cx="36" cy="36" r="30"/>
+            <circle class="ring-fill" id="ring-fill" cx="36" cy="36" r="30"
+              stroke-dasharray="188.5" stroke-dashoffset="75.4" stroke="#c8f0a0"/>
+          </svg>
+          <div class="ring-center" id="score-num" style="color:#c8f0a0">60</div>
+        </div>
+        <div>
+          <div class="score-verdict" id="score-verdict" style="color:#c8f0a0">Invest</div>
+          <div class="score-hint">AI fit score · higher = stronger case for AI</div>
+        </div>
+      </div>
+
+      <div class="verdict-pill" id="verdict-pill" style="background:#1a2a0a">
+        <span id="verdict-text" style="color:#c8f0a0">Strong AI candidate. High recurrence, lower judgment risk — AI earns its place here.</span>
+      </div>
+
+      <div class="dl">What AI handles well</div>
+      <div class="dt" id="ai-good">Drafting, summarizing, pattern generation, structured first passes</div>
+
+      <div class="dl">What still needs you</div>
+      <div class="dt" id="ai-needs">Final judgment calls, customer context, strategic decisions</div>
+
+      <div class="dl">Examples</div>
+      <div class="tags" id="examples"></div>
+    </div>
+
+    <!-- Panel B: What will it cost? -->
+    <div class="panel panel-cost">
+      <div class="panel-eyebrow">// What will it cost?</div>
+
+      <div class="cost-amount" id="cost-amount" style="color:#a0d4f0">$0.10–$0.50</div>
+      <div class="cost-unit">estimated cost per session</div>
+
+      <div class="cost-bar-bg">
+        <div class="cost-bar-fill" id="cost-bar" style="width:25%;background:#a0d4f0"></div>
+      </div>
+
+      <div class="cost-table">
+        <div class="ct-row">
+          <span class="ct-label">Session type</span>
+          <span class="ct-val hi" id="ct-type">Medium — doc analysis, writing</span>
+        </div>
+        <div class="ct-row">
+          <span class="ct-label">Base cost range</span>
+          <span class="ct-val" id="ct-base">$0.10–$0.50 each</span>
+        </div>
+        <div class="ct-row" id="ct-upload-row" style="display:none">
+          <span class="ct-label">Upload multiplier</span>
+          <span class="ct-val warn">3–10× applied</span>
+        </div>
+        <div class="ct-row">
+          <span class="ct-label">Monthly budget (Claude)</span>
+          <span class="ct-val">$500 / month</span>
+        </div>
+        <div class="ct-row">
+          <span class="ct-label">Sessions this budget funds</span>
+          <span class="ct-val hi" id="ct-sessions">~1,000–5,000</span>
+        </div>
+      </div>
+
+      <div class="upload-note" id="upload-note">
+        <strong>Upload multiplier active.</strong> Large docs and images add 3–10× to base cost. At high complexity, a single session could run $3–$150+. Use selectively.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let uploadOn = false;
+
+function toggleUpload() {
+  uploadOn = !uploadOn;
+  document.getElementById('toggle-track').style.background = uploadOn ? '#a0d4f0' : 'var(--gray-2)';
+  const knob = document.getElementById('toggle-knob');
+  knob.style.left = uploadOn ? '19px' : '3px';
+  knob.style.background = uploadOn ? '#0a1e2a' : 'var(--gray-4)';
+  update();
+}
+
+const fitTiers = [
+  {
+    min:65, max:100,
+    verdict:"Invest", color:"#c8f0a0", bg:"#1a2a0a",
+    summary:"Strong AI candidate. High recurrence, lower judgment risk — AI earns its place. Prioritize within the monthly budget.",
+    good:"Drafting, summarizing, pattern generation, structured first passes, documentation",
+    needs:"Final judgment calls, customer context, cross-functional alignment",
+    examples:["Meeting summaries","Spec drafts","Research synthesis","Copy variants","Ticket descriptions","Release notes","Test case generation"]
+  },
+  {
+    min:40, max:64,
+    verdict:"Selective", color:"#f5e090", bg:"#2a2500",
+    summary:"AI adds value but judgment or impact risk means a clear human review step is non-negotiable. Use AI for the first pass, not the final call.",
+    good:"First-pass structures, option generation, summarizing inputs, drafting recommendations",
+    needs:"Strategic decisions, customer empathy, edge case handling, stakeholder judgment",
+    examples:["PRD drafts","User story writing","Roadmap summaries","Persona synthesis","Requirements analysis","Retrospective prep","Sprint planning briefs"]
+  },
+  {
+    min:0, max:39,
+    verdict:"Protect", color:"#f0c0b0", bg:"#2a1008",
+    summary:"AI cost or risk outweighs the benefit. Review overhead eats time savings. Keep this human-led and spend tokens where they earn more.",
+    good:"Limited — requires contextual judgment AI can't reliably approximate",
+    needs:"Everything. Human judgment is the work, not just the review layer.",
+    examples:["Product strategy","Customer discovery","Executive presentations","Pricing decisions","Org design","Critical incident response"]
+  }
+];
+
+function update() {
+  const r = +document.getElementById('s-repeat').value;
+  const j = +document.getElementById('s-judge').value;
+  const i = +document.getElementById('s-impact').value;
+  const c = +document.getElementById('s-complex').value;
+
+  document.getElementById('v-repeat').textContent  = r;
+  document.getElementById('v-judge').textContent   = j;
+  document.getElementById('v-impact').textContent  = i;
+  document.getElementById('v-complex').textContent = c;
+
+  // FIT: repetition pushes up, judgment + impact push down
+  const raw   = r + (6 - j) + (6 - i);
+  const score = Math.round((raw / 15) * 100);
+  const fit   = fitTiers.find(t => score >= t.min && score <= t.max);
+
+  const circ = 188.5;
+  document.getElementById('ring-fill').style.strokeDashoffset = circ - (score / 100) * circ;
+  document.getElementById('ring-fill').style.stroke = fit.color;
+  document.getElementById('score-num').textContent  = score;
+  document.getElementById('score-num').style.color  = fit.color;
+  document.getElementById('score-verdict').textContent = fit.verdict;
+  document.getElementById('score-verdict').style.color = fit.color;
+  document.getElementById('verdict-pill').style.background = fit.bg;
+  document.getElementById('verdict-text').textContent = fit.summary;
+  document.getElementById('verdict-text').style.color  = fit.color;
+  document.getElementById('ai-good').textContent  = fit.good;
+  document.getElementById('ai-needs').textContent = fit.needs;
+  document.getElementById('examples').innerHTML   = fit.examples.map(e => `<span class="tag">${e}</span>`).join('');
+
+  // COST: all four sliders contribute
+  // complexity + repetition + judgment + impact all push cost up
+  // raw cost score 4–20, mapped to a dollar range
+  const costRaw = c + r + j + i; // range 4–20
+  const costPct = (costRaw - 4) / 16; // 0.0–1.0
+
+  // Interpolate lo and hi cost across the full spectrum
+  // lo: $0.01 → $3.00, hi: $0.05 → $15+
+  const loMin = 0.01, loMax = 3.00;
+  const hiMin = 0.05, hiMax = 15;
+  let costLo = loMin + costPct * (loMax - loMin);
+  let costHi = hiMin + costPct * (hiMax - hiMin);
+
+  // Upload multiplier
+  if (uploadOn) { costLo *= 3; costHi *= 10; }
+
+  // Format cost range
+  const fmtVal = v => v >= 10 ? `$${v.toFixed(0)}` : `$${v.toFixed(2)}`;
+  const rng = costHi >= 14 && !uploadOn
+    ? `${fmtVal(costLo)}–$15+`
+    : `${fmtVal(costLo)}–${fmtVal(costHi)}`;
+
+  // Session type label based on complexity + judgment combo
+  const sessionLabels = [
+    { max: 6,  label: "Short prompt — Q&A, quick rewrite" },
+    { max: 9,  label: "Medium — doc analysis, brief writing" },
+    { max: 13, label: "Complex, multi-turn — synthesis" },
+    { max: 17, label: "Complex, multi-turn — spec writing" },
+    { max: 20, label: "Agentic / Claude Code session" }
+  ];
+  const sessionLabel = sessionLabels.find(s => costRaw <= s.max)?.label || sessionLabels[4].label;
+
+  // Sessions budget can fund
+  const budget = 500;
+  const effLo = uploadOn ? costLo : costLo;
+  const effHi = uploadOn ? costHi : costHi;
+  const sessMax = Math.round(budget / Math.max(effLo, 0.01));
+  const sessMin = Math.round(budget / Math.max(effHi, 0.01));
+  const sessFmt = sessMax >= 10000
+    ? `~${sessMin.toLocaleString()}–${(sessMax/1000).toFixed(0)}k+`
+    : sessMax >= 1000
+    ? `~${sessMin}–${(sessMax/1000).toFixed(1)}k`
+    : `~${sessMin}–${sessMax}`;
+
+  // Bar width and color
+  const barPct = Math.round(10 + costPct * (uploadOn ? 92 : 82));
+  const col = costPct < 0.35 ? '#a0d4f0' : costPct < 0.65 ? '#f5e090' : '#f0c0b0';
+  const finalCol = uploadOn ? '#f0c0b0' : col;
+
+  document.getElementById('cost-amount').textContent    = rng;
+  document.getElementById('cost-amount').style.color    = finalCol;
+  document.getElementById('cost-bar').style.width       = barPct + '%';
+  document.getElementById('cost-bar').style.background  = finalCol;
+  document.getElementById('ct-type').textContent        = sessionLabel;
+  document.getElementById('ct-base').textContent        = rng + ' per session';
+  document.getElementById('ct-sessions').textContent    = sessFmt;
+  document.getElementById('ct-upload-row').style.display = uploadOn ? 'flex' : 'none';
+  document.getElementById('upload-note').classList.toggle('show', uploadOn && costRaw >= 14);
+}
+
+update();
+</script>
+</body>
+</html>
